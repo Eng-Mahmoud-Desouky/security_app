@@ -87,8 +87,11 @@ class OutputSectionWidget extends StatelessWidget {
                   else
                     _SingleResultView(
                       outputText: state.processResult.outputText,
+                      cipherType: state.cipherType,
                       operationMode: state.operationMode,
                       keyUsed: state.key,
+                      vigenereKey: state.vigenereKey,
+                      validationMessage: state.processResult.validationMessage,
                       onCopy: () =>
                           _copyOutput(context, state.processResult.outputText),
                       onUseAsInput: cubit.useOutputAsInput,
@@ -111,15 +114,21 @@ class OutputSectionWidget extends StatelessWidget {
 
 class _SingleResultView extends StatelessWidget {
   final String outputText;
+  final CipherType cipherType;
   final CipherOperationMode operationMode;
   final int keyUsed;
+  final String vigenereKey;
+  final String? validationMessage;
   final VoidCallback onCopy;
   final VoidCallback onUseAsInput;
 
   const _SingleResultView({
     required this.outputText,
+    required this.cipherType,
     required this.operationMode,
     required this.keyUsed,
+    required this.vigenereKey,
+    required this.validationMessage,
     required this.onCopy,
     required this.onUseAsInput,
   });
@@ -128,10 +137,42 @@ class _SingleResultView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool hasOutput = outputText.isNotEmpty;
+    final String keyDescription = cipherType == CipherType.vigenere
+        ? 'Keyword = "$vigenereKey"'
+        : 'K = $keyUsed';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (validationMessage != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onErrorContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    validationMessage!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -140,8 +181,8 @@ class _SingleResultView extends StatelessWidget {
           children: [
             Text(
               operationMode == CipherOperationMode.encrypt
-                  ? 'Ciphertext Result (K = $keyUsed)'
-                  : 'Plaintext Result (K = $keyUsed)',
+                  ? 'Ciphertext Result ($keyDescription)'
+                  : 'Plaintext Result ($keyDescription)',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,

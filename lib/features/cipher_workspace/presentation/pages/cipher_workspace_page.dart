@@ -62,14 +62,78 @@ class CipherWorkspacePage extends StatelessWidget {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 860),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  InputCardWidget(),
-                  SizedBox(height: 12),
-                  ControlBarWidget(),
-                  SizedBox(height: 12),
-                  OutputSectionWidget(),
+                  BlocBuilder<CipherWorkspaceCubit, CipherWorkspaceState>(
+                    buildWhen: (prev, curr) =>
+                        prev.cipherType != curr.cipherType,
+                    builder: (context, state) {
+                      return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.shield_outlined,
+                                    size: 18,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Cipher Algorithm',
+                                    style:
+                                        theme.textTheme.labelLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SegmentedButton<CipherType>(
+                                segments: const <ButtonSegment<CipherType>>[
+                                  ButtonSegment<CipherType>(
+                                    value: CipherType.caesar,
+                                    label: Text('Caesar Cipher'),
+                                    icon: Icon(Icons.dialpad_rounded),
+                                  ),
+                                  ButtonSegment<CipherType>(
+                                    value: CipherType.vigenere,
+                                    label: Text('Vigenère Cipher'),
+                                    icon: Icon(Icons.vpn_key_rounded),
+                                  ),
+                                ],
+                                selected: <CipherType>{state.cipherType},
+                                onSelectionChanged:
+                                    (Set<CipherType> selection) {
+                                  context
+                                      .read<CipherWorkspaceCubit>()
+                                      .setCipherType(selection.first);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  const InputCardWidget(),
+                  const SizedBox(height: 12),
+                  const ControlBarWidget(),
+                  const SizedBox(height: 12),
+                  const OutputSectionWidget(),
                 ],
               ),
             ),

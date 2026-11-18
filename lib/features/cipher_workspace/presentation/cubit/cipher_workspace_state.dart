@@ -5,6 +5,12 @@ import '../../../../domain/entities/brute_force_candidate.dart';
 import '../../../../domain/entities/char_trace_step.dart';
 import '../../../../domain/entities/cipher_process_result.dart';
 
+/// Supported cipher algorithms in the workspace.
+enum CipherType {
+  caesar,
+  vigenere,
+}
+
 /// Operation modes supported by the workspace.
 enum CipherOperationMode {
   encrypt,
@@ -21,8 +27,10 @@ enum WorkspaceOutputTab {
 
 /// Immutable state for the Cipher Workspace screen.
 class CipherWorkspaceState extends Equatable {
+  final CipherType cipherType;
   final String inputText;
   final int key;
+  final String vigenereKey;
   final CipherOperationMode operationMode;
   final bool preserveSpaces;
   final CipherEngine activeEngine;
@@ -34,8 +42,10 @@ class CipherWorkspaceState extends Equatable {
   final WorkspaceOutputTab activeOutputTab;
 
   const CipherWorkspaceState({
+    this.cipherType = CipherType.caesar,
     required this.inputText,
     required this.key,
+    this.vigenereKey = 'KEY',
     required this.operationMode,
     required this.preserveSpaces,
     required this.activeEngine,
@@ -73,8 +83,10 @@ class CipherWorkspaceState extends Equatable {
 
   @override
   List<Object?> get props => [
+        cipherType,
         inputText,
         key,
+        vigenereKey,
         operationMode,
         preserveSpaces,
         activeEngine,
