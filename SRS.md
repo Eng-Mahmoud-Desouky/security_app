@@ -1,13 +1,15 @@
-# Multi-Domain Caesar Cipher Engine - SRS & Reference Spec
+# Multi-Domain Caesar & Vigenère Cipher Engine - SRS & Reference Spec
 
 ## 1. Core Functional Requirements
 | ID | Requirement | Mathematical / Logic Rule | Purpose |
 | :--- | :--- | :--- | :--- |
 | **FR-01** | **Multi-Domain Alphabet Routing** | Per-character routing across 10 mutually exclusive character matrices ($N_D$). | Deterministic paper verification & multi-language support. |
-| **FR-02** | **Encryption** | $C = ((P + K) \bmod N_D + N_D) \bmod N_D$ | Shift character index forward within its own domain $D$. |
-| **FR-03** | **Decryption** | $P = ((C - K) \bmod N_D + N_D) \bmod N_D$ | Restore original character index handling negative shifts safely. |
-| **FR-04** | **Smart Brute-Force (Crack)** | Iterate $K \in [1 \dots \max(N_{\text{detected}}) - 1]$ | Crack ciphertext without knowing $K$ based on detected domains. |
-| **FR-05** | **Mathematical Trace Inspector** | Display per-grapheme table: `Char | Domain (N) | Index P | Formula | New Index C | Result` | 100% instant match with manual paper solution. |
+| **FR-02** | **Caesar Encryption** | $C = ((P + K) \bmod N_D + N_D) \bmod N_D$ | Shift character index forward within its own domain $D$. |
+| **FR-03** | **Caesar Decryption** | $P = ((C - K) \bmod N_D + N_D) \bmod N_D$ | Restore original character index handling negative shifts safely. |
+| **FR-04** | **Smart Brute-Force (Crack)** | Iterate $K \in [1 \dots \max(N_{\text{detected}}) - 1]$ (Caesar mode only) | Crack ciphertext without knowing $K$ based on detected domains. |
+| **FR-05** | **Mathematical Trace Inspector** | Display per-grapheme table: `Char \| Domain (N) \| Index P \| Formula \| New Index C \| Result`. Caesar: `(P ± K) mod N = C`; Vigenère: `[keyChar=K] (P + K) mod N = C` (encrypt) / `[keyChar=K] (C - K) mod N = P` (decrypt). | 100% instant match with manual paper solution. |
+| **FR-06** | **Vigenère Polyalphabetic Routing & Key Stream** | Parse keyword via `keyword.characters` into valid `VigenereKeyToken` entries (grapheme, domain, index $K_i$). Ignore spaces (when `preserveSpaces` is ON) and unknown chars; if cleaned keyword is empty, return input unchanged with `validationMessage`. Maintain independent `keyStep` pointer incremented **only** after a valid character encryption/decryption (bypassed spaces/unknowns do not advance `keyStep`). | Multi-domain keyword alignment without losing sync on bypassed characters. |
+| **FR-07** | **Vigenère Encryption & Decryption** | Using `keyToken = keyTokens[keyStep % keyTokens.length]` (index $K$ in key character's domain): Encrypt $C = ((P + K) \bmod N_D + N_D) \bmod N_D$; Decrypt $P_{\text{orig}} = ((C - K) \bmod N_D + N_D) \bmod N_D$. Output symbol is resolved in the **input character's domain $D$**. | Polyalphabetic shifting while strictly preserving input case and domain. |
 
 ## 2. Mutually Exclusive Character Domain Matrices (Strict Indexing 0 to N-1)
 - **DOM_AR (N = 36):** `ابتثجحخدذرزسشصضطظعغفقكلمنهويأإآؤئءةى`
@@ -35,22 +37,26 @@
 
 ## 3. User Stories & Acceptance Criteria
 - **US-01 (User Input & Controls):**
-  1. Multiline TextField supporting RTL/LTR mixed text with Copy, Paste, and Clear buttons.
-  2. Controlled In-App Emoji Grid Picker (5x4 Modal Bottom Sheet or Popover triggered by an icon inside the TextField) displaying the exact 20 emojis from `DOM_EMOJI` with their index `0..19` underneath to prevent OS keyboard UTF-16 variation selector mismatches.
-  3. Segmented Operation Selector: `Encrypt` | `Decrypt` | `Crack (Brute-Force)`.
-  4. Integer Key Input with `+` / `-` stepper buttons (disabled/hidden in `Crack` mode).
-  5. Toggle Switch: `"Preserve Spaces & Unknowns"` (Default: ON -> spaces `' '` and unknown characters bypass shifting and remain unchanged; OFF -> space is routed to `DOM_SYM` index 0).
+  1. Top Cipher Algorithm Selector (`SegmentedButton<CipherType>`): `Caesar Cipher` | `Vigenère Cipher`.
+  2. Multiline TextField supporting RTL/LTR mixed text with Copy, Paste, and Clear buttons.
+  3. Controlled In-App Emoji Grid Picker (5x4 Modal Bottom Sheet or Popover triggered by an icon inside the input or keyword TextField) displaying the exact 20 emojis from `DOM_EMOJI` with their index `0..19` underneath to prevent OS keyboard UTF-16 variation selector mismatches.
+  4. Segmented Operation Selector: `Encrypt` | `Decrypt` | `Crack (Brute-Force)`. Selecting `Vigenère Cipher` while in `Crack (Brute-Force)` mode automatically switches the operation mode to `Encrypt` and disables the `Crack (Brute-Force)` segment.
+  5. Dynamic Key Control:
+     - **Caesar mode:** Integer Key Input (`K`) with `+` / `-` stepper buttons (disabled/hidden in `Crack` mode).
+     - **Vigenère mode:** Polyalphabetic Keyword `TextField` (default `'KEY'`) supporting multi-domain characters and `EmojiGridSheet` insertion, Clear button, live `Key Stream` token badges (`[grapheme=index]`), and an empty/invalid keyword validation alert when no valid domain characters remain.
+  6. Toggle Switch: `"Preserve Spaces & Unknowns"` (Default: ON -> spaces `' '` and unknown characters bypass shifting and remain unchanged; OFF -> space is routed to `DOM_SYM` index 0).
 - **US-02 (Grapheme-Aware Per-Character Routing):**
-  1. MUST iterate over input text using Flutter's `characters` package (`input.characters`) so multi-byte emojis (like `❤️` or `🛡️`) are processed as single atomic graphemes.
+  1. MUST iterate over input text using Flutter's `characters` package (`input.characters` and `keyword.characters`) so multi-byte emojis (like `❤️` or `🛡️`) are processed as single atomic graphemes.
   2. Each grapheme is matched against the predefined `CharacterDomain` list (Stored as explicit `List<String>` per domain, NOT raw String indexing).
 - **US-03 (Smart Multi-Domain Brute-Force):**
-  1. Detect active domains in the input text and display them as UI Badges (e.g., `AR (36)`, `EN_UPPER (26)`).
+  1. Available in **Caesar** mode only. Detect active domains in the input text and display them as UI Badges (e.g., `AR (36)`, `EN_UPPER (26)`).
   2. Determine max bound $M = \max(N_{\text{detected}})$ (fallback to 36 if none detected) and generate candidate decryptions for $K \in [1 \dots M-1]$.
 - **US-04 (Interactive Paper-Trace Inspector):**
   1. A dedicated tab/expandable view showing a clean data table of every character transformation: `Char`, `Domain (N)`, `Index P`, `Formula`, `New Index C`, `Result`.
+  2. In Vigenère mode, the `Formula` column explicitly records the matched key grapheme and its index (e.g., `[K=10] (7 + 10) mod 26 = 17` for encrypt; `[K=10] (17 - 10) mod 26 = 7` for decrypt), while bypassed spaces/unknowns are flagged as bypassed rows without advancing `keyStep`.
 
 ## 4. Clean Architecture & Extensibility Structure
 - `lib/core/alphabets/`: `CharacterDomain` entity and `PredefinedDomains` registry.
-- `lib/domain/entities/`: `CharTraceStep`, `CipherProcessResult`, `BruteForceCandidate`.
-- `lib/domain/ciphers/`: Abstract `CipherEngine` interface (Strategy Pattern for weekly new ciphers) and `CaesarCipherEngine` implementation.
-- `lib/features/cipher_workspace/presentation/`: `CipherWorkspaceCubit` & `CipherWorkspaceState` (via `flutter_bloc` & `equatable`), Main Workspace Screen, Controlled Emoji Grid Sheet, Trace Table Widget, and Brute-Force Results List.
+- `lib/domain/entities/`: `CharTraceStep`, `CipherProcessResult` (with optional `validationMessage`), and `BruteForceCandidate`.
+- `lib/domain/ciphers/`: Abstract `CipherEngine` interface (Strategy Pattern for weekly new ciphers), `CaesarCipherEngine`, and `VigenereCipherEngine` (with `VigenereKeyToken`) in `vigenere_cipher_engine.dart`.
+- `lib/features/cipher_workspace/presentation/`: `CipherWorkspaceCubit` & `CipherWorkspaceState` (via `flutter_bloc` & `equatable`, tracking `CipherType` (`caesar`, `vigenere`) and `vigenereKey`), Main Workspace Screen, Control Bar Widget, Output Section Widget, Controlled Emoji Grid Sheet, Trace Table Widget, and Brute-Force Results List.
